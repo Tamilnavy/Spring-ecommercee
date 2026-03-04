@@ -8,20 +8,47 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Random;
 
 @Service
 public class AuthService {
 
     private final UserRepository userRepository;
     private final JwtUtil jwtUtil;
+    private final EmailService emailService;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
     public AuthService(UserRepository userRepository,
-                       JwtUtil jwtUtil) {
+                       JwtUtil jwtUtil,
+                       EmailService emailService) {
+
         this.userRepository = userRepository;
         this.jwtUtil = jwtUtil;
+        this.emailService = emailService;
     }
 
+    // SEND OTP
+    public String sendOtp(String name, String email) {
+
+        String otp = String.valueOf(new Random().nextInt(900000) + 100000);
+        LocalDateTime expiry = LocalDateTime.now().plusMinutes(5);
+
+        User user = userRepository.findByEmail(email)
+                .orElse(new User());
+
+        user.setName(name);
+        user.setEmail(email);
+        user.setOtp(otp);
+        user.setOtpExpires(expiry);
+
+        userRepository.save(user);
+
+        emailService.sendOtp(email, otp);
+
+        return "OTP sent to email";
+    }
+
+    // REGISTER USER
     public String register(RegisterRequest request) {
 
         User user = userRepository.findByEmail(request.getEmail())
@@ -35,7 +62,7 @@ public class AuthService {
 
         user.setPassword(encoder.encode(request.getPassword()));
 
-        // Enforce all new registrations to be normal users
+        // Force all registrations to USER
         user.setRole("ROLE_USER");
 
         user.setPhone(request.getPhone());
@@ -48,6 +75,7 @@ public class AuthService {
         return "User registered successfully";
     }
 
+    // LOGIN
     public LoginResponse login(LoginRequest request) {
 
         User user = userRepository.findByEmail(request.getEmail())
@@ -65,6 +93,7 @@ public class AuthService {
         return new LoginResponse(token, refreshToken);
     }
 
+    // REFRESH TOKEN
     public RefreshResponse refresh(String refreshToken) {
 
         String userId = jwtUtil.extractUserIdFromRefresh(refreshToken);

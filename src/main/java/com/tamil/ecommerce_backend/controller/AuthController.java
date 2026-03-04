@@ -20,6 +20,11 @@ public class AuthController {
         this.userRepository = userRepository;
     }
 
+    @PostMapping("/send-otp")
+    public String sendOtp(@RequestBody SendOtpRequest request) {
+        return authService.sendOtp(request.getName(), request.getEmail());
+    }
+
     @PostMapping("/register")
     public String register(@RequestBody RegisterRequest request) {
         return authService.register(request);
